@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QRCRAFT PRO | Custom Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080808;
+            --card: #141414;
+            --accent: #00ffa3;
+            --text: #ffffff;
+            --border: #222;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 15px; }
+
+        header { text-align: center; margin: 20px 0 30px; }
+        h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; }
+        h1 span { color: var(--accent); }
+
+        .container { display: grid; grid-template-columns: 1fr 360px; gap: 20px; width: 100%; max-width: 1100px; }
+
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 25px; }
+
+        /* Types de données */
+        .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .type-btn { 
+            background: #1a1a1a; border: 1px solid var(--border); color: #888; padding: 10px; 
+            border-radius: 10px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: 0.2s;
+        }
+        .type-btn:hover, .type-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,163,0.05); }
+
+        label { display: block; font-size: 0.7rem; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; letter-spacing: 1px; }
+
+        textarea { 
+            width: 100%; background: #000; border: 1px solid var(--border); border-radius: 12px; 
+            color: white; padding: 15px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; 
+            resize: none; margin-bottom: 20px; height: 100px;
+        }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .control-group { margin-bottom: 15px; }
+
+        input[type="color"] { -webkit-appearance: none; border: none; width: 100%; height: 45px; border-radius: 10px; cursor: pointer; background: none; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 10px; border: 2px solid var(--border); }
+
+        .preview-side { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .qr-display { 
+            background: white; padding: 25px; border-radius: 20px; display: flex; 
+            align-items: center; justify-content: center; min-height: 310px; position: relative;
+        }
+        #qr-img { max-width: 100%; height: auto; transition: opacity 0.2s; }
+
+        .btn-main { 
+            background: var(--accent); color: black; border: none; padding: 18px; 
+            border-radius: 15px; font-weight: 800; cursor: pointer; text-transform: uppercase; 
+            font-size: 0.9rem; transition: transform 0.1s;
+        }
+        .btn-main:active { transform: scale(0.96); }
+
+        .loader { 
+            position: absolute; border: 3px solid #f3f3f3; border-top: 3px solid var(--accent); 
+            border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; 
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 850px) {
+            .container { grid-template-columns: 1fr; }
+            .preview-side { position: static; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>QR<span>CRAFT</span></h1>
+</header>
+
+<div class="container">
+    <div class="panel">
+        <label>Format rapide</label>
+        <div class="type-grid">
+            <button class="type-btn active" onclick="setType('url', this)">Lien Web</button>
+            <button class="type-btn" onclick="setType('wifi', this)">WiFi</button>
+            <button class="type-btn" onclick="setType('vcard', this)">Contact</button>
+        </div>
+
+        <label>Contenu</label>
+        <textarea id="qr-data" placeholder="Entrez votre contenu..." oninput="updateQR()">https://google.com</textarea>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Couleur QR</label>
+                <input type="color" id="fg-color" value="#000000" oninput="updateQR()">
+            </div>
+            <div class="control-group">
+                <label>Couleur Fond</label>
+                <input type="color" id="bg-color" value="#ffffff" oninput="updateQR()">
+            </div>
+            <div class="control-group" style="grid-column: span 2;">
+                <label>Marge de sécurité</label>
+                <input type="range" id="qr-margin" min="1" max="5" value="2" oninput="updateQR()" style="width:100%">
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-side">
+        <div class="qr-display">
+            <div class="loader" id="loader"></div>
+            <img id="qr-img" src="" alt="Aperçu">
+        </div>
+        <button class="btn-main" onclick="downloadQR()">Télécharger (PNG)</button>
+    </div>
+</div>
+
+<script>
+    let timer;
+
+    function setType(type, btn) {
+        const input = document.getElementById('qr-data');
+        const templates = {
+            url: 'https://',
+            wifi: 'WIFI:T:WPA;S:NomDuReseau;P:MotDePasse;;',
+            vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:Nom Prénom\nTEL:0600000000\nEND:VCARD'
+        };
+        input.value = templates[type];
+        
+        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateQR();
+    }
+
+    function updateQR() {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            const img = document.getElementById('qr-img');
+            const loader = document.getElementById('loader');
+            const data = encodeURIComponent(document.getElementById('qr-data').value);
+            const fg = document.getElementById('fg-color').value.replace('#', '');
+            const bg = document.getElementById('bg-color').value.replace('#', '');
+            const margin = document.getElementById('qr-margin').value;
+
+            if (!data) return;
+
+            loader.style.display = "block";
+            img.style.opacity = "0.2";
+
+            const url = `https://quickchart.io/qr?text=${data}&dark=${fg}&light=${bg}&size=800&margin=${margin}&ecLevel=H`;
+            
+            img.src = url;
+            img.onload = () => {
+                loader.style.display = "none";
+                img.style.opacity = "1";
+            };
+        }, 300);
+    }
+
+    async function downloadQR() {
+        const img = document.getElementById('qr-img');
+        if (!img.src) return;
+
+        try {
+            // Cette méthode permet de forcer le téléchargement au lieu d'ouvrir le lien
+            const response = await fetch(img.src);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'qrcraft-code.png';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            // Fallback si le fetch échoue (certains navigateurs)
+            window.open(img.src, '_blank');
+        }
+    }
+
+    window.onload = updateQR;
+</script>
+
+</body>
+</html>
