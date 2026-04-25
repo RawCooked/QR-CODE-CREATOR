@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QRCraft Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-1: #ffe5cf;
+            --bg-2: #d9f4ff;
+            --surface: rgba(255, 255, 255, 0.86);
+            --surface-strong: #ffffff;
+            --text: #15263b;
+            --muted: #52647d;
+            --accent: #146aff;
+            --accent-soft: rgba(20, 106, 255, 0.12);
+            --stroke: rgba(21, 38, 59, 0.14);
+            --shadow: 0 18px 45px rgba(26, 57, 109, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 15% 20%, rgba(255, 140, 74, 0.28), transparent 42%),
+                radial-gradient(circle at 85% 0%, rgba(20, 106, 255, 0.22), transparent 35%),
+                linear-gradient(140deg, var(--bg-1), var(--bg-2));
+            padding: 18px 14px 30px;
+        }
+
+        .app {
+            width: min(960px, 100%);
+            margin: 0 auto;
+            display: grid;
+            gap: 14px;
+        }
+
+        .hero {
+            background: var(--surface);
+            border: 1px solid var(--stroke);
+            border-radius: 26px;
+            box-shadow: var(--shadow);
+            padding: 18px;
+            animation: rise 450ms ease;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(1.45rem, 3.8vw, 2rem);
+            letter-spacing: -0.02em;
+        }
+
+        .pill {
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid color-mix(in srgb, var(--accent) 35%, white);
+            font-weight: 700;
+            font-size: 0.74rem;
+            border-radius: 999px;
+            padding: 7px 12px;
+        }
+
+        .preview-wrap {
+            background: linear-gradient(145deg, #ffffff, #f7f8ff);
+            border: 1px solid rgba(21, 38, 59, 0.1);
+            border-radius: 20px;
+            min-height: 282px;
+            display: grid;
+            place-items: center;
+            position: relative;
+            padding: 18px;
+            overflow: hidden;
+        }
+
+        #qr-img {
+            width: min(100%, 320px);
+            height: auto;
+            border-radius: 12px;
+            transition: opacity 0.2s ease;
+        }
+
+        .loader {
+            width: 34px;
+            height: 34px;
+            border: 3px solid rgba(20, 106, 255, 0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 850ms linear infinite;
+            position: absolute;
+            display: none;
+        }
+
+        .hero-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 14px;
+            min-height: 46px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, filter 0.2s ease;
+        }
+
+        button:focus,
+        summary:focus,
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+        }
+
+        button:focus-visible,
+        summary:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible,
+        select:focus-visible {
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35);
+        }
+
+        button:active {
+            transform: translateY(1px) scale(0.99);
+        }
+
+        .btn-main {
+            background: var(--accent);
+            color: #ffffff;
+        }
+
+        .btn-alt {
+            background: #ffffff;
+            color: var(--text);
+            border: 1px solid var(--stroke);
+        }
+
+        .status {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            min-height: 1.2em;
+        }
+
+        details.settings {
+            background: var(--surface);
+            border: 1px solid var(--stroke);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: rise 520ms ease;
+        }
+
+        .settings > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 16px 18px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            user-select: none;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.62));
+        }
+
+        .settings > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .settings > summary::after {
+            content: 'Masquer';
+            color: var(--muted);
+            font-size: 0.86rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .settings:not([open]) > summary::after {
+            content: 'Ouvrir';
+        }
+
+        .settings-body {
+            padding: 10px 14px 16px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .label {
+            font-size: 0.74rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 7px;
+            font-weight: 700;
+        }
+
+        .type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .type-btn {
+            text-align: left;
+            background: #ffffff;
+            color: #344a67;
+            border: 1px solid var(--stroke);
+            border-radius: 12px;
+            padding: 10px 12px;
+            min-height: 44px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .type-btn.active {
+            border-color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 11%, white);
+            color: color-mix(in srgb, var(--accent) 82%, black);
+        }
+
+        .field-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field > label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #334964;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid var(--stroke);
+            border-radius: 12px;
+            background: #ffffff;
+            color: var(--text);
+            min-height: 44px;
+            padding: 10px 12px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .palette-btn {
+            border: 1px solid var(--stroke);
+            border-radius: 12px;
+            background: #ffffff;
+            display: grid;
+            place-items: center;
+            padding: 10px;
+            min-height: 52px;
+        }
+
+        .palette-btn.active {
+            border-color: var(--accent);
+            box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 22%, white);
+        }
+
+        .swatches {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .pdf-preview {
+            width: 100%;
+            min-height: 180px;
+            border: 1px dashed var(--stroke);
+            border-radius: 12px;
+            background: #fff;
+            display: none;
+        }
+
+        @media (min-width: 860px) {
+            .app {
+                width: min(1180px, 100%);
+                grid-template-columns: minmax(0, 1fr) 410px;
+                gap: 16px;
+                align-items: start;
+            }
+
+            .settings {
+                order: 1;
+            }
+
+            .hero {
+                order: 2;
+                position: sticky;
+                top: 18px;
+            }
+
+            .type-grid {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+            }
+
+            .palette-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes rise {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <section class="hero">
+            <div class="brand">
+                <h1>QRCraft Studio</h1>
+                <span class="pill">Mobile Ready</span>
+            </div>
+            <div class="preview-wrap">
+                <div class="loader" id="loader"></div>
+                <img id="qr-img" alt="Apercu du code QR">
+            </div>
+            <div class="hero-actions">
+                <button class="btn-main" id="download-png">Telecharger PNG</button>
+                <button class="btn-alt" id="download-pdf">Exporter PDF</button>
+            </div>
+            <p class="status" id="status" aria-live="polite"></p>
+        </section>
+
+        <details class="settings" open>
+            <summary>Contenu et personnalisation</summary>
+            <div class="settings-body">
+                <section>
+                    <p class="label">Type de QR</p>
+                    <div class="type-grid" id="type-grid"></div>
+                </section>
+
+                <section>
+                    <p class="label">Champs dynamiques</p>
+                    <div class="field-grid" id="dynamic-fields"></div>
+                    <iframe id="pdf-preview" class="pdf-preview" title="Apercu du PDF local"></iframe>
+                </section>
+
+                <section>
+                    <p class="label">Palettes QR</p>
+                    <div class="palette-grid" id="palette-grid"></div>
+                </section>
+
+                <section class="controls">
+                    <div class="field">
+                        <label for="fg-color">Couleur QR</label>
+                        <input id="fg-color" type="color" value="#0f172a">
+                    </div>
+                    <div class="field">
+                        <label for="bg-color">Couleur fond</label>
+                        <input id="bg-color" type="color" value="#ffffff">
+                    </div>
+                </section>
+
+                <section class="row">
+                    <div class="field">
+                        <label for="qr-margin">Marge</label>
+                        <input id="qr-margin" type="range" min="1" max="8" value="2">
+                    </div>
+                    <div class="field">
+                        <label for="qr-size">Taille image</label>
+                        <input id="qr-size" type="range" min="400" max="1400" step="50" value="900">
+                    </div>
+                </section>
+            </div>
+        </details>
+    </main>
+
+    <script>
+        const typeConfig = {
+            url: {
+                label: 'Lien Web',
+                fields: [
+                    { name: 'url', label: 'URL', type: 'url', placeholder: 'https://example.com', value: 'https://example.com' }
+                ],
+                build: v => v.url
+            },
+            maps: {
+                label: 'Maps',
+                fields: [
+                    { name: 'place', label: 'Lieu ou adresse', type: 'text', placeholder: 'Tour Eiffel, Paris', value: 'Tour Eiffel, Paris' }
+                ],
+                build: v => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v.place || '')}`
+            },
+            wifi: {
+                label: 'Wi-Fi',
+                fields: [
+                    { name: 'ssid', label: 'Nom du reseau (SSID)', type: 'text', value: 'MonWifi' },
+                    { name: 'password', label: 'Mot de passe', type: 'text', value: 'MotDePasse123' },
+                    {
+                        name: 'encryption',
+                        label: 'Securite',
+                        type: 'select',
+                        value: 'WPA',
+                        options: [
+                            { label: 'WPA/WPA2', value: 'WPA' },
+                            { label: 'WEP', value: 'WEP' },
+                            { label: 'Aucune', value: 'nopass' }
+                        ]
+                    }
+                ],
+                build: v => `WIFI:T:${v.encryption};S:${v.ssid};P:${v.password};H:false;;`
+            },
+            contact: {
+                label: 'Contact',
+                fields: [
+                    { name: 'fullname', label: 'Nom complet', type: 'text', value: 'Nom Prenom' },
+                    { name: 'phone', label: 'Telephone', type: 'tel', value: '+33600000000' },
+                    { name: 'email', label: 'Email', type: 'email', value: 'contact@entreprise.com' },
+                    { name: 'org', label: 'Entreprise', type: 'text', value: 'Mon entreprise' }
+                ],
+                build: v => `BEGIN:VCARD\nVERSION:3.0\nFN:${v.fullname}\nORG:${v.org}\nTEL:${v.phone}\nEMAIL:${v.email}\nEND:VCARD`
+            },
+            social: {
+                label: 'Reseaux sociaux',
+                fields: [
+                    {
+                        name: 'platform',
+                        label: 'Plateforme',
+                        type: 'select',
+                        value: 'instagram',
+                        options: [
+                            { label: 'Instagram', value: 'instagram' },
+                            { label: 'TikTok', value: 'tiktok' },
+                            { label: 'X / Twitter', value: 'x' },
+                            { label: 'LinkedIn', value: 'linkedin' },
+                            { label: 'Facebook', value: 'facebook' },
+                            { label: 'YouTube', value: 'youtube' }
+                        ]
+                    },
+                    { name: 'handle', label: 'Pseudo ou URL complete', type: 'text', value: '@monprofil' }
+                ],
+                build: v => buildSocialLink(v.platform, v.handle)
+            },
+            email: {
+                label: 'Email',
+                fields: [
+                    { name: 'to', label: 'Destinataire', type: 'email', value: 'hello@example.com' },
+                    { name: 'subject', label: 'Sujet', type: 'text', value: 'Bonjour' },
+                    { name: 'body', label: 'Message', type: 'textarea', value: 'Je vous contacte via votre QR code.' }
+                ],
+                build: v => `mailto:${v.to}?subject=${encodeURIComponent(v.subject || '')}&body=${encodeURIComponent(v.body || '')}`
+            },
+            phone: {
+                label: 'Appel',
+                fields: [
+                    { name: 'phone', label: 'Numero', type: 'tel', value: '+33600000000' }
+                ],
+                build: v => `tel:${v.phone}`
+            },
+            sms: {
+                label: 'SMS',
+                fields: [
+                    { name: 'phone', label: 'Numero', type: 'tel', value: '+33600000000' },
+                    { name: 'message', label: 'Message', type: 'textarea', value: 'Bonjour, je vous ecris depuis le QR.' }
+                ],
+                build: v => `sms:${v.phone}?body=${encodeURIComponent(v.message || '')}`
+            },
+            text: {
+                label: 'Texte libre',
+                fields: [
+                    { name: 'content', label: 'Contenu', type: 'textarea', value: 'Bienvenue dans QRCraft Studio.' }
+                ],
+                build: v => v.content
+            },
+            pdf: {
+                label: 'PDF',
+                fields: [
+                    {
+                        name: 'mode',
+                        label: 'Mode PDF',
+                        type: 'select',
+                        value: 'url',
+                        options: [
+                            { label: 'Lien vers un PDF en ligne', value: 'url' },
+                            { label: 'PDF local (test appareil)', value: 'local' }
+                        ]
+                    },
+                    { name: 'pdfUrl', label: 'URL du PDF', type: 'url', value: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
+                    { name: 'pdfFile', label: 'Choisir un PDF local', type: 'file' }
+                ],
+                build: v => {
+                    if (v.mode === 'local') {
+                        return localPdfUrl || '';
+                    }
+                    return v.pdfUrl || '';
+                }
+            }
+        };
+
+        const palettes = {
+            breeze: {
+                ui: ['#d9f4ff', '#ffe5cf', '#146aff'],
+                fg: '#0f172a',
+                bg: '#ffffff'
+            },
+            minty: {
+                ui: ['#e0fdf6', '#dbeafe', '#0f9f75'],
+                fg: '#063f33',
+                bg: '#ffffff'
+            },
+            poppy: {
+                ui: ['#ffe1ec', '#ffe8d1', '#ff4f81'],
+                fg: '#331428',
+                bg: '#fffdf6'
+            },
+            solar: {
+                ui: ['#fff5cc', '#dbf3ff', '#f59e0b'],
+                fg: '#3b2b07',
+                bg: '#ffffff'
+            }
+        };
+
+        let currentType = 'url';
+        let localPdfUrl = '';
+        let debounceTimer;
+        let currentPayload = '';
+
+        const qrImg = document.getElementById('qr-img');
+        const loader = document.getElementById('loader');
+        const statusEl = document.getElementById('status');
+        const typeGrid = document.getElementById('type-grid');
+        const fieldsWrap = document.getElementById('dynamic-fields');
+        const paletteGrid = document.getElementById('palette-grid');
+        const fgColor = document.getElementById('fg-color');
+        const bgColor = document.getElementById('bg-color');
+        const qrMargin = document.getElementById('qr-margin');
+        const qrSize = document.getElementById('qr-size');
+        const pdfPreview = document.getElementById('pdf-preview');
+
+        function initTypeButtons() {
+            typeGrid.innerHTML = Object.entries(typeConfig)
+                .map(([key, cfg]) => `<button class="type-btn ${key === currentType ? 'active' : ''}" data-type="${key}" type="button">${cfg.label}</button>`)
+                .join('');
+
+            typeGrid.querySelectorAll('.type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentType = btn.dataset.type;
+                    initTypeButtons();
+                    renderFields();
+                    updateQr();
+                });
+            });
+        }
+
+        function renderFields() {
+            const cfg = typeConfig[currentType];
+            fieldsWrap.innerHTML = '';
+
+            cfg.fields.forEach(field => {
+                const row = document.createElement('div');
+                row.className = 'field';
+                row.dataset.name = field.name;
+
+                const label = document.createElement('label');
+                label.setAttribute('for', `field-${field.name}`);
+                label.textContent = field.label;
+
+                let control;
+                if (field.type === 'textarea') {
+                    control = document.createElement('textarea');
+                } else if (field.type === 'select') {
+                    control = document.createElement('select');
+                    field.options.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.textContent = opt.label;
+                        control.appendChild(option);
+                    });
+                } else {
+                    control = document.createElement('input');
+                    control.type = field.type === 'file' ? 'file' : field.type;
+                    if (field.type === 'file') {
+                        control.accept = 'application/pdf';
+                    }
+                }
+
+                control.id = `field-${field.name}`;
+                control.name = field.name;
+                if (field.placeholder) {
+                    control.placeholder = field.placeholder;
+                }
+                if (field.value && field.type !== 'file') {
+                    control.value = field.value;
+                }
+
+                control.addEventListener('change', handleFieldChange);
+                control.addEventListener('input', handleFieldChange);
+
+                row.append(label, control);
+                fieldsWrap.appendChild(row);
+            });
+
+            togglePdfFields();
+        }
+
+        function togglePdfFields() {
+            const isPdf = currentType === 'pdf';
+            const modeInput = document.getElementById('field-mode');
+            const urlRow = fieldsWrap.querySelector('[data-name="pdfUrl"]');
+            const fileRow = fieldsWrap.querySelector('[data-name="pdfFile"]');
+
+            if (!isPdf) {
+                pdfPreview.style.display = 'none';
+                return;
+            }
+
+            if (!modeInput || !urlRow || !fileRow) {
+                return;
+            }
+
+            const localMode = modeInput.value === 'local';
+            urlRow.style.display = localMode ? 'none' : 'grid';
+            fileRow.style.display = localMode ? 'grid' : 'none';
+            pdfPreview.style.display = localMode && localPdfUrl ? 'block' : 'none';
+        }
+
+        function initPalettes() {
+            paletteGrid.innerHTML = Object.entries(palettes)
+                .map(([key, p], index) => {
+                    const swatches = p.ui.map(color => `<span class="dot" style="background:${color}"></span>`).join('');
+                    return `<button class="palette-btn ${index === 0 ? 'active' : ''}" type="button" data-palette="${key}" aria-label="Palette ${index + 1}"><div class="swatches">${swatches}</div></button>`;
+                })
+                .join('');
+
+            paletteGrid.querySelectorAll('.palette-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    paletteGrid.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    applyPalette(btn.dataset.palette);
+                });
+            });
+        }
+
+        function applyPalette(name) {
+            const selected = palettes[name];
+            if (!selected) {
+                return;
+            }
+            fgColor.value = selected.fg;
+            bgColor.value = selected.bg;
+            updateQr();
+        }
+
+        function handleFieldChange(event) {
+            if (currentType === 'pdf' && event.target.id === 'field-mode') {
+                togglePdfFields();
+            }
+
+            if (currentType === 'pdf' && event.target.id === 'field-pdfFile') {
+                const file = event.target.files && event.target.files[0];
+                if (localPdfUrl) {
+                    URL.revokeObjectURL(localPdfUrl);
+                }
+
+                if (file) {
+                    localPdfUrl = URL.createObjectURL(file);
+                    pdfPreview.src = localPdfUrl;
+                    pdfPreview.style.display = 'block';
+                    setStatus('PDF local charge. Le QR sera utilisable surtout sur cet appareil.');
+                } else {
+                    localPdfUrl = '';
+                    pdfPreview.style.display = 'none';
+                }
+            }
+
+            togglePdfFields();
+            updateQr();
+        }
+
+        function collectValues() {
+            const values = {};
+            fieldsWrap.querySelectorAll('input, textarea, select').forEach(input => {
+                values[input.name] = input.value;
+            });
+            return values;
+        }
+
+        function buildSocialLink(platform, handle) {
+            const raw = (handle || '').trim();
+            if (raw.startsWith('http://') || raw.startsWith('https://')) {
+                return raw;
+            }
+
+            const clean = raw.replace(/^@/, '');
+            const base = {
+                instagram: 'https://instagram.com/',
+                tiktok: 'https://www.tiktok.com/@',
+                x: 'https://x.com/',
+                linkedin: 'https://www.linkedin.com/in/',
+                facebook: 'https://facebook.com/',
+                youtube: 'https://youtube.com/@'
+            };
+
+            return `${base[platform] || base.instagram}${encodeURIComponent(clean)}`;
+        }
+
+        function setStatus(message) {
+            statusEl.textContent = message;
+        }
+
+        function updateQr() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const values = collectValues();
+                const payload = (typeConfig[currentType].build(values) || '').trim();
+
+                if (!payload) {
+                    setStatus('Ajoute un contenu pour generer le QR.');
+                    return;
+                }
+
+                currentPayload = payload;
+                const encoded = encodeURIComponent(payload);
+                const dark = fgColor.value.replace('#', '');
+                const light = bgColor.value.replace('#', '');
+                const margin = qrMargin.value;
+                const size = qrSize.value;
+
+                loader.style.display = 'block';
+                qrImg.style.opacity = '0.18';
+
+                const src = `https://quickchart.io/qr?text=${encoded}&dark=${dark}&light=${light}&size=${size}&margin=${margin}&ecLevel=H`;
+                qrImg.src = src;
+
+                qrImg.onload = () => {
+                    loader.style.display = 'none';
+                    qrImg.style.opacity = '1';
+                    setStatus(`QR pret: ${typeConfig[currentType].label}`);
+                };
+
+                qrImg.onerror = () => {
+                    loader.style.display = 'none';
+                    qrImg.style.opacity = '1';
+                    setStatus('Erreur de generation. Verifie les champs ou la connexion.');
+                };
+            }, 260);
+        }
+
+        async function downloadPng() {
+            if (!qrImg.src) {
+                setStatus('Aucun QR a telecharger pour le moment.');
+                return;
+            }
+
+            try {
+                const response = await fetch(qrImg.src);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = 'qrcraft-code.png';
+                a.click();
+                URL.revokeObjectURL(blobUrl);
+                setStatus('PNG telecharge.');
+            } catch (error) {
+                window.open(qrImg.src, '_blank', 'noopener');
+                setStatus('Ouverture du QR dans un nouvel onglet (fallback).');
+            }
+        }
+
+        async function downloadPdf() {
+            if (!qrImg.src) {
+                setStatus('Genere un QR avant export PDF.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+            try {
+                const response = await fetch(qrImg.src);
+                const blob = await response.blob();
+                const reader = new FileReader();
+
+                reader.onloadend = () => {
+                    const imgData = reader.result;
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(16);
+                    doc.text('QRCraft Studio', 48, 62);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(11);
+                    doc.text(`Type: ${typeConfig[currentType].label}`, 48, 82);
+                    doc.text(`Contenu: ${currentPayload.slice(0, 90)}${currentPayload.length > 90 ? '...' : ''}`, 48, 98);
+                    doc.addImage(imgData, 'PNG', 160, 150, 275, 275);
+                    doc.save('qrcraft-code.pdf');
+                    setStatus('PDF exporte.');
+                };
+
+                reader.readAsDataURL(blob);
+            } catch (error) {
+                setStatus('Impossible dexporter en PDF pour le moment.');
+            }
+        }
+
+        function bindStaticInputs() {
+            [fgColor, bgColor, qrMargin, qrSize].forEach(input => {
+                input.addEventListener('input', updateQr);
+            });
+
+            document.getElementById('download-png').addEventListener('click', downloadPng);
+            document.getElementById('download-pdf').addEventListener('click', downloadPdf);
+        }
+
+        initTypeButtons();
+        renderFields();
+        initPalettes();
+        bindStaticInputs();
+        applyPalette('breeze');
+    </script>
+</body>
+</html>
